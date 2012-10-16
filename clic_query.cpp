@@ -139,10 +139,13 @@ int main(int argc, char* argv[]) {
 
 	// Set up the clang translation unit
 	CXIndex cxindex = clang_createIndex(0, 0);
-	const char* command_line_args = "-I/usr/lib/gcc/i486-linux-gnu/4.7/include";
+	const char* command_line_args[2] = {
+		"-I/usr/lib/gcc/i486-linux-gnu/4.7/include", 
+		"-I/usr/local/include"
+	};
 	CXTranslationUnit tu = clang_parseTranslationUnit(
 		cxindex, file_name,
-		&command_line_args, 1,
+		command_line_args, 2,
 		0, 0,
 		CXTranslationUnit_DetailedPreprocessingRecord);
 
