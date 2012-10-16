@@ -34,7 +34,7 @@ public:
 		CXCursorKind kind = clang_getCursorKind(cursor);
 		const char* cursorFilename = clang_getCString(clang_getFileName(file));
 		printf("visit FILE: %s\n", cursorFilename);
-		if (!clang_getFileName(file).data || strcmp(cursorFilename, translationUnitFilename) != 0) {
+		if (!clang_getFileName(file).data) {
 			return CXChildVisit_Continue;
 		}
 
@@ -165,9 +165,12 @@ int main(int argc, char* argv[]) {
 
 	CXFile cx_file = clang_getFile(tu, (const char*)file_name);
 	CXSourceLocation cx_source_loc = clang_getLocation(tu, cx_file, line, col);
-	CXCursor cx_cursor = clang_getCursor(tu, cx_source_loc); 
-	CXCursor t_cursor = clang_getCursorDefinition(cx_cursor);
-
+	CXCursor cx_cursor = clang_getCursor(tu, cx_source_loc);
+	CXCursor t_cursor = clang_getNullCursor();
+	if (query_type == QUERY_IMPL)
+		t_cursor = clang_getCursorDefinition(cx_cursor);
+	else //query_type is QUERY_DECL
+		t_cursor = clang_getCursorReferenced(cx_cursor);
 	CXFile t_file;
 	unsigned int t_line, t_col, t_offset;
 
@@ -190,7 +193,6 @@ int main(int argc, char* argv[]) {
 	// dealloc
 	clang_disposeTranslationUnit(tu);
 	clang_disposeIndex(cxindex);
-
 
 	return 0;
 }
