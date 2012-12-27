@@ -88,7 +88,7 @@ int main(int argc, const char* argv[]) {
     CXIndex cxindex = clang_createIndex(0, 0);
     CXTranslationUnit tu = clang_parseTranslationUnit(
         cxindex, 0,
-        argv + 2, argc - 2, // Skip over dbFilename and indexFilename
+        argv + 3, argc - 3, // Skip over program name (argv[0]), dbFilename and indexFilename
         0, 0,
         CXTranslationUnit_None);
 
