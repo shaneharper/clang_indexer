@@ -12,6 +12,7 @@ extern "C" {
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <iostream>
 
 // This code intentionally leaks memory like a sieve because the program is shortlived.
 
@@ -73,6 +74,17 @@ enum CXChildVisitResult visitorFunction(
     return visitor->visit(cursor, parent);
 }
 
+static void output_diagnostics(const CXTranslationUnit& tu) {
+    for (unsigned i = 0; i != clang_getNumDiagnostics(tu); ++i) {
+        std::cerr
+            << clang_getCString(
+                    clang_formatDiagnostic(
+                        clang_getDiagnostic(tu, i),
+                        clang_defaultDiagnosticDisplayOptions()))
+            << std::endl;
+    }
+}
+
 int main(int argc, const char* argv[]) {
     if (argc < 4) {
         std::cerr << "Usage:\n"
@@ -80,9 +92,9 @@ int main(int argc, const char* argv[]) {
         return 1;
     }
 
-    const char* dbFilename = argv[1];
-    const char* indexFilename = argv[2];
-    const char* sourceFilename = argv[argc-1];
+    const char* const dbFilename = argv[1];
+    const char* const indexFilename = argv[2];
+    const char* const sourceFilename = argv[argc-1];
 
     // Set up the clang translation unit
     CXIndex cxindex = clang_createIndex(0, 0);
@@ -92,19 +104,7 @@ int main(int argc, const char* argv[]) {
         0, 0,
         CXTranslationUnit_None);
 
-    // Print any errors or warnings
-    int n = clang_getNumDiagnostics(tu);
-    if (n > 0) {
-        int nErrors = 0;
-        for (unsigned i = 0; i != n; ++i) {
-            CXDiagnostic diag = clang_getDiagnostic(tu, i);
-            CXString string = clang_formatDiagnostic(diag, clang_defaultDiagnosticDisplayOptions());
-            fprintf(stderr, "%s\n", clang_getCString(string));
-            if (clang_getDiagnosticSeverity(diag) == CXDiagnostic_Error
-                    || clang_getDiagnosticSeverity(diag) == CXDiagnostic_Fatal)
-                nErrors++;
-        }
-    }
+    output_diagnostics(tu);
 
     // Create the index
     EverythingIndexer visitor(sourceFilename);
@@ -125,8 +125,7 @@ int main(int argc, const char* argv[]) {
     ClicDb db(dbFilename);
 
     BOOST_FOREACH(const ClicIndex::value_type& it, index) {
-        const std::string& usr = it.first;
-        db.addMultiple(usr, it.second);
+        db.addMultiple(/*usr*/ it.first, it.second);
     }
 
     return 0;
