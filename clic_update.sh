@@ -14,15 +14,14 @@ find $SOURCE_PATH\
 
 add_to_index() {
     INDEX_FILE=`echo ${1}.i.gz | tr "/" "%"`
-    echo clic_add index.db $INDEX_FILE `cat ${SOURCE_PATH}/.clang_complete` $1
+    echo + $1
     clic_add index.db $INDEX_FILE `cat ${SOURCE_PATH}/.clang_complete` $1
 }
 
 remove_from_index() {
     INDEX_FILE=`echo ${1}.i.gz | tr "/" "%"`
-    echo clic_rm index.db $INDEX_FILE
+    echo - $1
     clic_rm index.db $INDEX_FILE
-    echo rm $INDEX_FILE
     rm $INDEX_FILE
 }
 
