@@ -29,7 +29,8 @@ remove_from_index() {
     rm $INDEX_FILENAME
 }
 
-if [ ! -f index.db -o ! -f files.txt ]; then
+if [ ! -f index.db -o ! -f files.txt \
+     -o ${SOURCE_PATH}/.clang_complete -nt index.db ]; then
     echo "Creating database"
     clic_clear index.db
     > files.txt
