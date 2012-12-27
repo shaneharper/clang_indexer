@@ -2,15 +2,6 @@
 
 SOURCE_PATH=$1
 SOURCE_ABSOLUTE_PATH=`cd $SOURCE_PATH; pwd`
-find $SOURCE_ABSOLUTE_PATH\
-    -name "*.cpp" -or\
-    -name "*.hpp" -or\
-    -name "*.cxx" -or\
-    -name "*.hxx" -or\
-    -name "*.cc" -or\
-    -name "*.c" -or\
-    -name "*.h"\
-    | sort > files2.txt
 
 index_filename() {
     echo $1.i.gz | tr "/" "%"
@@ -29,6 +20,7 @@ remove_from_index() {
     rm $INDEX_FILENAME
 }
 
+
 if [ ! -f index.db -o ! -f files.txt \
      -o ${SOURCE_PATH}/.clang_complete -nt index.db ]; then
     echo "Creating database"
@@ -37,6 +29,16 @@ if [ ! -f index.db -o ! -f files.txt \
 else
     echo "Updating database"
 fi
+
+find $SOURCE_ABSOLUTE_PATH\
+    -name "*.cpp" -or\
+    -name "*.hpp" -or\
+    -name "*.cxx" -or\
+    -name "*.hxx" -or\
+    -name "*.cc" -or\
+    -name "*.c" -or\
+    -name "*.h"\
+    | sort > files2.txt
 
 # Add added files
 for i in `comm -23 files2.txt files.txt`; do
