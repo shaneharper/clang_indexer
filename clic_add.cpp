@@ -85,6 +85,19 @@ static void output_diagnostics(const CXTranslationUnit& tu) {
     }
 }
 
+static bool has_errors(const CXTranslationUnit& tu) {
+    for (unsigned i = 0; i != clang_getNumDiagnostics(tu); ++i) {
+        const CXDiagnosticSeverity diagnostic_severity =
+            clang_getDiagnosticSeverity(clang_getDiagnostic(tu, i));
+        if (CXDiagnostic_Error == diagnostic_severity
+            || CXDiagnostic_Fatal == diagnostic_severity) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
 int main(int argc, const char* argv[]) {
     if (argc < 4) {
         std::cerr << "Usage:\n"
@@ -105,6 +118,9 @@ int main(int argc, const char* argv[]) {
         CXTranslationUnit_None);
 
     output_diagnostics(tu);
+    if (has_errors(tu)) {
+        return 1;
+    }
 
     // Create the index
     EverythingIndexer visitor(sourceFilename);
