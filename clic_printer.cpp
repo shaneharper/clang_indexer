@@ -1,6 +1,7 @@
 #include "clic_printer.hpp"
 
 #include <boost/foreach.hpp>
+#include <ostream>
 
 void printIndex(
     std::ostream& out,

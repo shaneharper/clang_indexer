@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CLANG_INDEXER_CLICDB_HPP__
+#define CLANG_INDEXER_CLICDB_HPP__
 
 #include <db_cxx.h>
 #include <set>
@@ -38,3 +39,5 @@ class ClicDb {
 
         Db db;
 };
+
+#endif // CLANG_INDEXER_CLICDB_HPP__
