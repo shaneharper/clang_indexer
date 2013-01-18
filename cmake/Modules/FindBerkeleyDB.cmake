@@ -1,8 +1,8 @@
 find_path(DB_INCLUDE_DIR db_cxx.h
-          PATH_SUFFIXES db51 db52)
+          PATH_SUFFIXES db51 db52 db53)
 
 find_library(DB_LIBRARY NAMES db_cxx
-             PATH_SUFFIXES db51 db52)
+             PATH_SUFFIXES db51 db52 db53)
 
 set(DB_LIBRARIES ${DB_LIBRARY})
 set(DB_INCLUDE_DIRS ${DB_INCLUDE_DIR})
