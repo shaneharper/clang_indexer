@@ -19,7 +19,7 @@ remove_from_index() {
     INDEX_FILENAME=$(index_filename $1)
     echo - $1
     clic_rm index.db $INDEX_FILENAME
-    rm $INDEX_FILENAME
+    rm -f $INDEX_FILENAME
 }
 
 
