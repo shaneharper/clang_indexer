@@ -74,17 +74,6 @@ enum CXChildVisitResult visitorFunction(
     return visitor->visit(cursor, parent);
 }
 
-static void output_diagnostics(const CXTranslationUnit& tu) {
-    for (unsigned i = 0; i != clang_getNumDiagnostics(tu); ++i) {
-        std::cerr
-            << clang_getCString(
-                    clang_formatDiagnostic(
-                        clang_getDiagnostic(tu, i),
-                        clang_defaultDiagnosticDisplayOptions()))
-            << std::endl;
-    }
-}
-
 static bool has_errors(const CXTranslationUnit& tu) {
     for (unsigned i = 0; i != clang_getNumDiagnostics(tu); ++i) {
         const CXDiagnosticSeverity diagnostic_severity =
@@ -110,7 +99,7 @@ int main(int argc, const char* argv[]) {
     const char* const sourceFilename = argv[argc-1];
 
     // Set up the clang translation unit
-    CXIndex cxindex = clang_createIndex(0, 0);
+    CXIndex cxindex = clang_createIndex(0, /*displayDiagnostics*/ 1);
     CXTranslationUnit tu = clang_parseTranslationUnit(
         cxindex, NULL,
         argv + 3, argc - 3, // Skip over program name (argv[0]), dbFilename and indexFilename
@@ -121,7 +110,6 @@ int main(int argc, const char* argv[]) {
         return 1;
     }
 
-    output_diagnostics(tu);
     if (has_errors(tu)) {
         return 1;
     }
