@@ -112,10 +112,14 @@ int main(int argc, const char* argv[]) {
     // Set up the clang translation unit
     CXIndex cxindex = clang_createIndex(0, 0);
     CXTranslationUnit tu = clang_parseTranslationUnit(
-        cxindex, 0,
+        cxindex, NULL,
         argv + 3, argc - 3, // Skip over program name (argv[0]), dbFilename and indexFilename
         0, 0,
         CXTranslationUnit_None);
+    if (tu == NULL) {
+        std::cerr << "clang_parseTranslationUnit failed." << std::endl;
+        return 1;
+    }
 
     output_diagnostics(tu);
     if (has_errors(tu)) {
