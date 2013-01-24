@@ -48,13 +48,13 @@ public:
                     &refFile, &refLine, &refColumn, &refOffset);
 
             if (clang_getFileName(refFile).data) {
-                std::string referencedUsr(clang_getCString(clang_getCursorUSR(refCursor)));
-                if (!referencedUsr.empty()) {
+                std::string referencedUSR(clang_getCString(clang_getCursorUSR(refCursor)));
+                if (!referencedUSR.empty()) {
                     std::stringstream ss;
                     ss << cursorFilename
                        << ":" << line << ":" << column << ":" << kind;
                     std::string location(ss.str());
-                    usrToReferences[referencedUsr].insert(location);
+                    USR_ToReferences[referencedUSR].insert(location);
                 }
             }
         }
@@ -62,7 +62,7 @@ public:
     }
 
     const char* translationUnitFilename;
-    ClicIndex usrToReferences;
+    ClicIndex USR_ToReferences;
 };
 
 enum CXChildVisitResult visitorFunction(
@@ -132,7 +132,7 @@ int main(int argc, const char* argv[]) {
             clang_getTranslationUnitCursor(tu),
             &visitorFunction,
             &visitor);
-    ClicIndex& index = visitor.usrToReferences;
+    ClicIndex& index = visitor.USR_ToReferences;
 
     // OK, now write the index to a compressed file
     std::ofstream fout(indexFilename);
@@ -145,7 +145,7 @@ int main(int argc, const char* argv[]) {
     ClicDb db(dbFilename);
 
     BOOST_FOREACH(const ClicIndex::value_type& it, index) {
-        db.addMultiple(/*usr*/ it.first, it.second);
+        db.addMultiple(/*USR*/ it.first, it.second);
     }
 
     return 0;
