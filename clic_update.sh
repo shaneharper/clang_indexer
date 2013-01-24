@@ -40,6 +40,7 @@ find $SOURCE_ABSOLUTE_PATH\
     -name "*.cc" -or\
     -name "*.c" -or\
     -name "*.h"\
+    | grep -v '/CMakeFiles/' \
     | sort > files2.txt
 
 # Add added files
