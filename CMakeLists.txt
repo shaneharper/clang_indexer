@@ -47,7 +47,7 @@ target_link_libraries(clic_query
     ${LibClang_LIBRARIES}
 )
 
-install(PROGRAMS clic_update.sh
+install(PROGRAMS clic_update.sh clic_update.py
     DESTINATION bin
 )
 install(TARGETS clic_rm clic_add clic_clear
