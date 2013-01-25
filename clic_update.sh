@@ -21,6 +21,7 @@ find $SOURCE_PATH\
     -name "*.cc" -or\
     -name "*.c" -or\
     -name "*.h"\
+    | grep -v /cmake/\
     | sort > files2.txt
 
 
