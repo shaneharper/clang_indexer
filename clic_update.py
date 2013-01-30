@@ -32,10 +32,14 @@
 # - option to specify how to find a matching C++ file (see the alternatepath
 #   option of a.vim)
 # - option to speficy the usual header/inline file extensions
-# - handle new files/old files removes
-# - handle files updated
+# - handle old files to remove
 # - version string, (c)
 # - verbose/quiet
+# - ignore files under {project-root}/cmake/
+# - detect for subfolders the compilation options common to all files in order to
+#   deduce the compilation option for header files in that same subfolder
+# - Execute on only one file (a non-header file)
+# - Execute on a header file and all the files that include it.
 
 ## Imports {{{1
 from subprocess import Popen
@@ -129,13 +133,21 @@ def find_matching_source_file(included_file):
     files = filter(lambda f: re_match_cpp_extension.match(f), files)
     return files[0] if len(files)>0 else None
 
+## update_index(compile_commands) {{{1
+def update_index(command, filename):
+    index_filename = string.replace(filename, '/', '%')+'.i.gz'
+    if os.path.getmtime(index_filename) < os.path.getmtime(filename):
+        compile_flags=extract_compile_flags(command)
+        # print compile_flags
+        add_to_index(filename, compile_flags)
+
 ## parse_source_files(compile_commands) {{{1
 def parse_source_files(compile_commands):
     for compile_command in compile_commands:
         # test pour ne pas parser ce qui est already connu
-        compile_flags=extract_compile_flags(compile_command['command'])
-        # print compile_flags
-        add_to_index(compile_command['file'], compile_flags)
+        # compile_flags=extract_compile_flags(compile_command['command'])
+        # add_to_index(compile_command['file'], compile_flags)
+        update_index(compile_command['command'], compile_command['file'])
 
 ## Main {{{1
 # Check options  {{{2
@@ -190,8 +202,9 @@ for included_file in included_files:
         if compile_command == None:
             print included_file+ ":0: Warning: header file ignored - No compilation options know for", source_file
         else:
-            compile_flags=extract_compile_flags(compile_command['command'])
-            add_to_index(included_file, compile_flags)
+            # compile_flags=extract_compile_flags(compile_command['command'])
+            # add_to_index(included_file, compile_flags)
+            update_index(compile_command['command'], included_file)
 
 
 
