@@ -29,15 +29,12 @@
 #     Run with -h to get the usage.
 #
 # Todo:                                                        {{{2
-# - option to specify how to find a matching C++ file (see the alternatepath
+# - Option to specify how to find a matching C++ file (see the alternatepath
 #   option of a.vim)
-# - option to speficy the usual header/inline file extensions
-# - handle old files to remove
-# - version string, (c)
-# - verbose/quiet
-# - ignore files under {project-root}/cmake/
-# - detect for subfolders the compilation options common to all files in order to
-#   deduce the compilation option for header files in that same subfolder
+# - Option to specify the usual header/inline file extensions
+# - Version string, (c)
+# - Verbose/quiet
+# - Ignore files under {project-root}/cmake/
 # - Execute on only one file (a non-header file)
 # - Execute on a header file and all the files that include it.
 
@@ -70,13 +67,26 @@ def find_clang_include_dir():
     include_path = include_dirs[-1]
     return include_path
 
+## remove_from_index {{{1
+def do_remove_from_index(index_filename):
+    # TODO: check the file exists
+    command = ["clic_rm", "index.db", index_filename]
+    call (command)
+
+def remove_from_index(filename):
+    index_filename = string.replace(filename, '/', '%')+'.i.gz'
+    print "Removing '"+os.path.basename(filename)+"'"
+    do_remove_from_index(index_filename)
+    command = ["rm", index_filename]
+    call (command)
+
+
 ## add_to_index {{{1
 # re_valid_error = re.compile("'linker' input unused when '-fsyntax-only' is present")
 re_empty = re.compile("^\s*$")
 re_valid_error = re.compile(".*'linker' input unused .*")
-def add_to_index(filename, flags):
-    index_filename = string.replace(filename, '/', '%')+'.i.gz'
-    print "Adding '"+os.path.basename(filename)+"'"
+
+def do_add_to_index(index_filename, filename, flags):
     command = ["clic_add", "index.db", index_filename]+flags+[filename]
     # print command
     # call(command, shell=False) 
@@ -88,15 +98,11 @@ def add_to_index(filename, flags):
     if len(str_result)>0:
         print str_result
 
-## remove_from_index {{{1
-def remove_from_index(filename):
+def add_to_index(filename, flags):
     index_filename = string.replace(filename, '/', '%')+'.i.gz'
-    print "Removing '"+os.path.basename(filename)+"'"
-    command = ["clic_rm", "index.db", index_filename]
-    call (command)
-    command = ["rm", index_filename]
-    call (command)
-
+    print "Adding '"+os.path.basename(filename)+"'"
+    do_remove_from_index(index_filename)
+    do_add_to_index(index_filename, filename, flags)
 
 ## extract_compile_flags {{{1
 re_valid_flag1 = re.compile('^-I|^-D|^-std|^-no')
@@ -133,13 +139,17 @@ def find_matching_source_file(included_file):
     files = filter(lambda f: re_match_cpp_extension.match(f), files)
     return files[0] if len(files)>0 else None
 
-## update_index(compile_commands) {{{1
-def update_index(command, filename):
+## update_index_with_flags(compile_commands) {{{1
+def update_index_with_flags(compile_flags, filename):
     index_filename = string.replace(filename, '/', '%')+'.i.gz'
-    if os.path.getmtime(index_filename) < os.path.getmtime(filename):
-        compile_flags=extract_compile_flags(command)
+    if (not os.path.exists(index_filename)) or os.path.getmtime(index_filename) < os.path.getmtime(filename):
         # print compile_flags
         add_to_index(filename, compile_flags)
+
+## update_index(compile_commands) {{{1
+def update_index(command, filename):
+    compile_flags=extract_compile_flags(command)
+    update_index_with_flags(compile_flags, filename)
 
 ## parse_source_files(compile_commands) {{{1
 def parse_source_files(compile_commands):
@@ -148,6 +158,24 @@ def parse_source_files(compile_commands):
         # compile_flags=extract_compile_flags(compile_command['command'])
         # add_to_index(compile_command['file'], compile_flags)
         update_index(compile_command['command'], compile_command['file'])
+
+## build_compile_commands_per_directory(compile_commands) {{{1
+def build_compile_commands_per_directory(compile_commands):
+    res = {}
+    for compile_command in compile_commands:
+        file = compile_command['file']
+        if global_options.excluded_files_for_options!=None and os.path.basename(file) in global_options.excluded_files_for_options:
+            continue
+        dir = os.path.dirname(file)
+        options = extract_compile_flags(compile_command['command'])
+        if res.has_key(dir):
+            if options != res[dir]:
+                # print "options mismatching for", compile_command['file'], "->", res[dir], "!=", options
+                res[dir] = ""
+        else:
+            res[dir] = options
+    return res
+
 
 ## Main {{{1
 # Check options  {{{2
@@ -161,6 +189,10 @@ parser.add_option("-c", "--compile_option", dest="compile_options",
 parser.add_option("-l", "--libclang_path", dest="libclang_path",
                   help="Where libclang is",
                   metavar="PATH", action="store"
+                  )
+parser.add_option("-x", "--exclude-file", dest="excluded_files_for_options",
+                  help="Files to exclude when trying to determine global compilation options",
+                  metavar="PATH", action="append"
                   )
 (global_options, args) = parser.parse_args()
 
@@ -184,6 +216,10 @@ compile_commands = json.load(compile_command_file)
 # Iterate over source files (.c, .cpp) {{{2
 parse_source_files(compile_commands)
 
+# Determine compile options common to all .cpp files in a directory
+compile_commands_per_directory = build_compile_commands_per_directory(compile_commands)
+# print compile_commands_per_directory
+
 # Header files {{{2
 # For each .h, .hpp, ... file, search for the matching .cpp to take its
 # compilation options
@@ -196,6 +232,12 @@ for root, dirs, files in os.walk(source_path):
 for included_file in included_files:
     source_file = find_matching_source_file(included_file)
     if source_file==None:
+        path = os.path.dirname(included_file)
+        if compile_commands_per_directory.has_key(path):
+            path_commands = compile_commands_per_directory[path]
+            if path_commands != "":
+                update_index_with_flags(path_commands, included_file)
+                continue
         print included_file+ ":0: Warning: header file ignored - Cannot find any related source file."
     else:
         compile_command = next((cc for cc in compile_commands if cc['file']==source_file), None)
@@ -205,6 +247,14 @@ for included_file in included_files:
             # compile_flags=extract_compile_flags(compile_command['command'])
             # add_to_index(included_file, compile_flags)
             update_index(compile_command['command'], included_file)
+
+# Removed files {{{2
+index_files = sorted(glob.glob(".*.i.gz"))
+index_files = map(lambda f: string.replace(f[:-5],'%', '/'), index_files)
+files_to_remove = filter(lambda f: not os.path.isfile(f), index_files)
+for file in files_to_remove:
+    remove_from_index(file)
+
 
 
 
