@@ -4,7 +4,7 @@ project (clic_project)
 option(USE_CLANG "build application with clang" ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
-find_package(Boost COMPONENTS iostreams REQUIRED)
+find_package(Boost 1.42 COMPONENTS iostreams REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(LibClang REQUIRED)
 find_package(BerkeleyDB REQUIRED)
