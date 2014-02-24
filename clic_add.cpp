@@ -8,64 +8,61 @@ extern "C" {
 #include <boost/foreach.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
-#include <cassert>
 #include <fstream>
 #include <string>
 #include <sstream>
 #include <iostream>
 
-// This code intentionally leaks memory like a sieve because the program is shortlived.
+// This code leaks memory like a sieve, but it's short-lived
 
 class IVisitor {
 public:
-    virtual enum CXChildVisitResult visit(CXCursor cursor, CXCursor parent) = 0;
+    virtual CXChildVisitResult visit(CXCursor cursor, CXCursor parent) = 0;
 };
 
 class EverythingIndexer : public IVisitor {
 public:
-    EverythingIndexer(const char* translationUnitFilename)
-        : translationUnitFilename(translationUnitFilename) {}
+    EverythingIndexer(const char* nameOfFileToIndex)
+        : nameOfFileToIndex(nameOfFileToIndex) {}
 
-    virtual enum CXChildVisitResult visit(CXCursor cursor, CXCursor parent) {
+    virtual CXChildVisitResult visit(CXCursor cursor, CXCursor /*parent*/) {
         CXFile file;
-        unsigned int line, column, offset;
+        unsigned int line, column;
         clang_getInstantiationLocation(
                 clang_getCursorLocation(cursor),
-                &file, &line, &column, &offset);
-        CXCursorKind kind = clang_getCursorKind(cursor);
+                &file, &line, &column, /*offset*/ NULL);
         const char* cursorFilename = clang_getCString(clang_getFileName(file));
 
-        if (!clang_getFileName(file).data || strcmp(cursorFilename, translationUnitFilename) != 0) {
+        if (!clang_getFileName(file).data || strcmp(cursorFilename, nameOfFileToIndex) != 0) {
             return CXChildVisit_Continue;
+            // XXX Rather the ignore the file, we could index it now (if not already indexed) - perhaps the file is a project include file.
         }
 
         CXCursor refCursor = clang_getCursorReferenced(cursor);
         if (!clang_equalCursors(refCursor, clang_getNullCursor())) {
             CXFile refFile;
-            unsigned int refLine, refColumn, refOffset;
             clang_getInstantiationLocation(
                     clang_getCursorLocation(refCursor),
-                    &refFile, &refLine, &refColumn, &refOffset);
+                    &refFile, /*line*/ NULL, /*column*/ NULL, /*offset*/ NULL);
 
-            if (clang_getFileName(refFile).data) {
-                std::string referencedUSR(clang_getCString(clang_getCursorUSR(refCursor)));
+            if (clang_getFileName(refFile).data) /*XXX why is this here? Note referencedUSR.empty() check below. */ {
+                const std::string referencedUSR(clang_getCString(clang_getCursorUSR(refCursor)));
                 if (!referencedUSR.empty()) {
                     std::stringstream ss;
                     ss << cursorFilename
-                       << ":" << line << ":" << column << ":" << kind;
-                    std::string location(ss.str());
-                    USR_ToReferences[referencedUSR].insert(location);
+                       << ":" << line << ":" << column << ":" << clang_getCursorKind(cursor);
+                    USR_ToReferences[referencedUSR].insert(ss.str());
                 }
             }
         }
         return CXChildVisit_Recurse;
     }
 
-    const char* translationUnitFilename;
+    const char* nameOfFileToIndex;
     ClicIndex USR_ToReferences;
 };
 
-enum CXChildVisitResult visitorFunction(
+CXChildVisitResult visitorFunction(
         CXCursor cursor,
         CXCursor parent,
         CXClientData clientData)
