@@ -15,6 +15,7 @@ For further instructions, please consult this blog post:
 http://blog.wuwon.id.au/2011/10/vim-plugin-for-navigating-c-with.html
 
 On Ubuntu 13.10:
+
     sudo apt-get install libboost-dev libboost-iostreams-dev libdb++-dev
     cd clang_indexer
     mkdir build && cd build && cmake .. && make
