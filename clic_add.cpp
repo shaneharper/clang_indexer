@@ -21,6 +21,7 @@ public:
 };
 
 class EverythingIndexer : public IVisitor {
+    const char* nameOfFileToIndex;
 public:
     EverythingIndexer(const char* nameOfFileToIndex)
         : nameOfFileToIndex(nameOfFileToIndex) {}
@@ -58,7 +59,6 @@ public:
         return CXChildVisit_Recurse;
     }
 
-    const char* nameOfFileToIndex;
     ClicIndex USR_ToReferences;
 };
 
