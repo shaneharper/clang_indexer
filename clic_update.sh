@@ -35,6 +35,8 @@ fi
 find $SOURCE_ABSOLUTE_PATH\
     -name "*.cpp" -or\
     -name "*.hpp" -or\
+    -name "*.c++" -or\
+    -name "*.h++" -or\
     -name "*.cxx" -or\
     -name "*.hxx" -or\
     -name "*.cc" -or\
