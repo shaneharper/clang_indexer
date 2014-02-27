@@ -1,8 +1,9 @@
 #pragma once
 
-#include <string>
 #include <map>
 #include <set>
+#include <string>
 
-typedef std::map< std::string, std::set<std::string> > ClicIndex;
-typedef std::pair< std::string, std::set<std::string> > ClicIndexItem;
+
+typedef std::map< std::string /*referenced USR*/, std::set<std::string /*location*/> > ClicIndex;
+typedef std::pair< std::string /*referenced USR*/, std::set<std::string /*location*/> > ClicIndexItem;

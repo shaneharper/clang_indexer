@@ -1,7 +1,6 @@
 #include "ClicDb.hpp"
 
 #include "clic_printer.hpp"
-#include "clic_parser.hpp"
 #include <boost/foreach.hpp>
 #include <boost/range/algorithm.hpp>
 #include <boost/algorithm/string.hpp>

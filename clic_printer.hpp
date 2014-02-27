@@ -6,7 +6,7 @@
 
 void printIndex(
     std::ostream& out,
-    const ClicIndex& index);
+    const ClicIndex&);
 
 void printLocations(
     std::ostream& out,

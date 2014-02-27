@@ -28,7 +28,7 @@ public:
 
     virtual CXChildVisitResult visit(CXCursor cursor, CXCursor /*parent*/) {
         CXFile file;
-        unsigned int line, column;
+        unsigned line, column;
         clang_getInstantiationLocation(
                 clang_getCursorLocation(cursor),
                 &file, &line, &column, /*offset*/ NULL);
