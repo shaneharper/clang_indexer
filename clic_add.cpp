@@ -10,7 +10,6 @@ extern "C" {
 #include <boost/iostreams/filter/gzip.hpp>
 #include <fstream>
 #include <string>
-#include <sstream>
 #include <iostream>
 
 // This code leaks memory like a sieve, but it's short-lived
@@ -36,7 +35,7 @@ public:
 
         if (!clang_getFileName(file).data || strcmp(cursorFilename, nameOfFileToIndex) != 0) {
             return CXChildVisit_Continue;
-            // XXX Rather the ignore the file, we could index it now (if not already indexed) - perhaps the file is a project include file.
+            // XXX Rather the ignore the file, we could index it now (if not already indexed) - perhaps the file is an include file we wish to index.
         }
 
         CXCursor refCursor = clang_getCursorReferenced(cursor);
@@ -49,10 +48,7 @@ public:
             if (clang_getFileName(refFile).data) /*XXX why is this here? Note referencedUSR.empty() check below. */ {
                 const std::string referencedUSR(clang_getCString(clang_getCursorUSR(refCursor)));
                 if (!referencedUSR.empty()) {
-                    std::stringstream ss;
-                    ss << cursorFilename
-                       << ":" << line << ":" << column << ":" << clang_getCursorKind(cursor);
-                    USR_ToReferences[referencedUSR].insert(ss.str());
+                    USR_ToReferences[referencedUSR].insert(Location::locationString(cursorFilename, line, column, clang_getCursorKind(cursor)));
                 }
             }
         }
@@ -95,18 +91,36 @@ static bool has_errors(const CXTranslationUnit& tu) {
 }
 
 
+void write(const char* indexFilename, const ClicIndex& index)
+{
+    std::ofstream fout(indexFilename);
+    boost::iostreams::filtering_stream<boost::iostreams::output> zout;
+    zout.push(boost::iostreams::gzip_compressor());
+    zout.push(fout);
+    printIndex(zout, index);
+}
+
+
+void addToDb(const char* dbFilename, const ClicIndex& index)
+{
+    ClicDb db(dbFilename);
+
+    BOOST_FOREACH(const ClicIndex::value_type& it, index) {
+        db.addMultiple(/*USR*/ it.first, it.second);
+    }
+}
+
+
 int main(int argc, const char* argv[]) {
     if (argc < 4) {
         std::cerr << "Usage:\n"
             << "    " << argv[0] << " <dbFilename> <indexFilename> [<options>] <sourceFilename>\n";
         return 1;
     }
-
     const char* const dbFilename = argv[1];
     const char* const indexFilename = argv[2];
     const char* const sourceFilename = argv[argc-1];
 
-    // Set up the clang translation unit
     CXIndex cxindex = clang_createIndex(0, /*displayDiagnostics*/ 0);
     CXTranslationUnit tu = clang_parseTranslationUnit(
         cxindex, NULL,
@@ -117,7 +131,6 @@ int main(int argc, const char* argv[]) {
         std::cerr << "clang_parseTranslationUnit failed." << std::endl;
         return 1;
     }
-
     output_diagnostics(tu);
     if (has_errors(tu)) {
         return 1;
@@ -129,21 +142,9 @@ int main(int argc, const char* argv[]) {
             clang_getTranslationUnitCursor(tu),
             &visitorFunction,
             &visitor);
-    ClicIndex& index = visitor.USR_ToReferences;
 
-    // OK, now write the index to a compressed file
-    std::ofstream fout(indexFilename);
-    boost::iostreams::filtering_stream<boost::iostreams::output> zout;
-    zout.push(boost::iostreams::gzip_compressor());
-    zout.push(fout);
-    printIndex(zout, index);
-
-    // Now open the database and add the index to it
-    ClicDb db(dbFilename);
-
-    BOOST_FOREACH(const ClicIndex::value_type& it, index) {
-        db.addMultiple(/*USR*/ it.first, it.second);
-    }
+    write(indexFilename, visitor.USR_ToReferences); // Note: the index files and the database contain the same information. Note that the db isn't keyed on source filename (the index files are though)- finding all references from a particular source file (only) occurs when updating the db after deleting a source file.
+    addToDb(dbFilename, visitor.USR_ToReferences);
 
     return 0;
 }
