@@ -1,6 +1,6 @@
 find_path(LibClang_INCLUDE_DIR clang-c/Index.h)
 
-find_library(LibClang_LIBRARY NAMES clang)
+find_library(LibClang_LIBRARY NAMES clang PATHS $ENV{HOME}/local/lib)
 
 set(LibClang_LIBRARIES ${LibClang_LIBRARY})
 set(LibClang_INCLUDE_DIRS ${LibClang_INCLUDE_DIR})
