@@ -4,6 +4,7 @@
 #include <db_cxx.h>
 #include <set>
 
+
 class ClicDb {
     public:
         ClicDb(const char* dbFilename);

@@ -1,6 +1,7 @@
 find_path(LibClang_INCLUDE_DIR clang-c/Index.h
     HINTS ${LIBCLANG_INCLUDE_PATH}
     PATHS
+
     # The way I install it...
     $ENV{HOME}/local/include
     # LLVM Debian/Ubuntu nightly packages: http://llvm.org/apt/
@@ -10,6 +11,7 @@ find_path(LibClang_INCLUDE_DIR clang-c/Index.h
     /usr/lib/llvm-3.4/include
     /usr/lib/llvm-3.5/include
     /usr/lib/llvm-3.6/include
+
     # LLVM MacPorts
     /opt/local/libexec/llvm-3.1/include
     /opt/local/libexec/llvm-3.2/include
@@ -17,6 +19,7 @@ find_path(LibClang_INCLUDE_DIR clang-c/Index.h
     /opt/local/libexec/llvm-3.4/include
     /opt/local/libexec/llvm-3.5/include
     /opt/local/libexec/llvm-3.6/include
+
     # LLVM Homebrew
     /usr/local/Cellar/llvm/3.1/include
     /usr/local/Cellar/llvm/3.2/include
@@ -31,6 +34,7 @@ find_library(LibClang_LIBRARY NAMES clang
     PATHS
     # The way I install it...
     $ENV{HOME}/local/lib
+
     # LLVM Debian/Ubuntu nightly packages: http://llvm.org/apt/
     /usr/lib/llvm-3.1/lib/
     /usr/lib/llvm-3.2/lib/
@@ -38,6 +42,7 @@ find_library(LibClang_LIBRARY NAMES clang
     /usr/lib/llvm-3.4/lib/
     /usr/lib/llvm-3.5/lib/
     /usr/lib/llvm-3.6/lib/
+
     # LLVM MacPorts
     /opt/local/libexec/llvm-3.1/lib
     /opt/local/libexec/llvm-3.2/lib
@@ -45,6 +50,7 @@ find_library(LibClang_LIBRARY NAMES clang
     /opt/local/libexec/llvm-3.4/lib
     /opt/local/libexec/llvm-3.5/lib
     /opt/local/libexec/llvm-3.6/lib
+
     # LLVM Homebrew
     /usr/local/Cellar/llvm/3.1/lib
     /usr/local/Cellar/llvm/3.2/lib

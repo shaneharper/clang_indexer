@@ -25,6 +25,13 @@ find $SOURCE_PATH\
     | grep -v /cmake/\
     | sort > files2.txt
 
+SOURCE_ABSOLUTE_PATH=`cd $SOURCE_PATH; pwd`
+
+index_filename() {
+    echo $1.i.gz | tr "/" "%"
+}
+
+
 
 if [ $# -ge 2 ] ; then
     ADD_CXX_FLAGS_FILE=$2/.clang_complete
@@ -45,6 +52,7 @@ filename_for_user() {
 }
 
 add_to_index() {
+
     INDEX_FILE=`echo "${1}.i.gz" | tr "/" "%"`
     echo "Adding '`filename_for_user $1`'"
     # echo clic_add index.db $INDEX_FILE $ADD_CXX_FLAGS $1
@@ -74,14 +82,24 @@ if [ ! -f index.db -o ! -f files.txt ]; then
     exit
 fi
 
-echo "Updating database"
-#Generate the list of files added since last time
-comm -23 files2.txt files.txt > filesadded.txt
+find $SOURCE_ABSOLUTE_PATH\
+    -name "*.cpp" -or\
+    -name "*.hpp" -or\
+    -name "*.c++" -or\
+    -name "*.h++" -or\
+    -name "*.cxx" -or\
+    -name "*.hxx" -or\
+    -name "*.cc" -or\
+    -name "*.c" -or\
+    -name "*.h"\
+    | grep -v '/CMakeFiles/' \
+    | sort > files2.txt
 
 while read i
 do
     add_to_index "$i"
 done < filesadded.txt
+
 
 # Remove removed files
 comm -23 files.txt files2.txt | sed 's/\\/\\\\/g' | while read i
@@ -99,4 +117,5 @@ do
 done < files.txt
 
 rm -f filesadded.txt
+
 mv files2.txt files.txt

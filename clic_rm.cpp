@@ -1,5 +1,4 @@
 #include "clic_parser.hpp"
-#include "clic_printer.hpp"
 
 #include "ClicDb.hpp"
 #include <boost/foreach.hpp>
