@@ -1,8 +1,7 @@
-#ifndef CLANG_INDEXER_CLICDB_HPP__
-#define CLANG_INDEXER_CLICDB_HPP__
+#pragma once
 
-#include <db_cxx.h>
 #include <set>
+#include <string>
 
 
 class ClicDb {
@@ -22,23 +21,5 @@ class ClicDb {
         void rmMultiple(const std::string& usr, const std::set<std::string>& locationsToRemove);
 
     private:
-        class ClicCursor {
-            public:
-                ClicCursor(Db& db) {
-                    db.cursor(0, &cursor, 0);
-                }
-                void rm(Dbt* key, Dbt* value) {
-                    if (cursor->get(key, value, DB_GET_BOTH) != DB_NOTFOUND)
-                        cursor->del(0);
-                }
-                ~ClicCursor() {
-                    cursor->close();
-                }
-            private:
-                Dbc* cursor;
-        };
-
-        Db db;
 };
 
-#endif // CLANG_INDEXER_CLICDB_HPP__

@@ -74,80 +74,56 @@ enum CXChildVisitResult visitorFunction(
 }
 
 enum QueryType {
+	QUERY_NONE,
 	QUERY_DECL,
 	QUERY_IMPL
 };
 
 int main(int argc, char* argv[]) {
-	if (argc < 7) {
-		fprintf(stderr, "Usage:\n\t <-f file> <-l line> <-c col> <-d | -i> <-p path_lists>\n");
+	if (argc < 4) {
+		fprintf(stderr, "Usage:\n\t <file> <line> <col> <-d| -i> [<options>] \n");
 		return 1;
 	}
 
-	char* file_name;
-	int col;
-	int line;
-	int query_type;
-	char*p = NULL;
-	char* tmp = NULL;
-	char* path_lists[128];
+	char* file_name = argv[1];
+	int line = atoi( argv[2] );
+	int col = atoi( argv[3] );
+	int query_type = QUERY_NONE;
 
 	// get options
-	int c;
-	while ((c = getopt(argc, argv, "f:l:c:dip:")) != -1) {
-		switch (c) {
-		case 'f':
-			file_name = optarg;
-			break;
-		case 'l':
-			line = atoi(optarg);
-			break;
-		case 'c':
-			col = atoi(optarg);
-			break;
-		case 'd':
-			query_type = QUERY_DECL;
-			break;
-		case 'i':
-			query_type = QUERY_IMPL;
-			break;
-		case 'p':
-			tmp = optarg;
-			printf("tmp = %s\n", tmp);
-			break;
-		default:
-			printf("unknow option -%c.\n", optopt);
-		}
-	}
+	int c = getopt(argc, argv, "dia:");
+    switch (c) {
+        case 'd':
+            query_type = QUERY_DECL;
+            break;
+        case 'i':
+            query_type = QUERY_IMPL;
+            break;
+        default:
+            printf("unknow option -%c.\n", optopt);
+    }
+    assert( query_type != QUERY_NONE);
 			    
-	// split path lists
-	p = strtok(tmp, ":");
-	int cnt = 0;
-	while (p != NULL) {
-		path_lists[cnt++] = p;
-		p = strtok(NULL, ":");
-	}
-	    
 	// debug print    
 	std::cout << "file = " << file_name << "\n";
-	std::cout << "line = " << line << ", col=" << col << "\n";
-	std::cout << "type = " << query_type << "\n";
-	std::cout << "total " << cnt << " path lists \n";
-	for (int i=0; i<cnt; i++)
-		std::cout << path_lists[i] << "\n";
-
+	std::cout << "line = " << line << ", col=" << col << ", type = " << query_type << "\n";
 
 	// Set up the clang translation unit
 	CXIndex cxindex = clang_createIndex(0, 0);
-	const char* command_line_args[2] = {
-		"-I/usr/lib/gcc/i486-linux-gnu/4.7/include", 
-		"-I/usr/local/include"
-	};
-	CXTranslationUnit tu = clang_parseTranslationUnit(
-		cxindex, file_name,
-		command_line_args, 2,
-		0, 0,
-		CXTranslationUnit_DetailedPreprocessingRecord);
+	CXTranslationUnit tu;
+    CXErrorCode error = clang_parseTranslationUnit2(
+		cxindex, 
+        file_name,
+		argv+5, 
+        argc-5,
+		nullptr, 
+        0,
+		CXTranslationUnit_DetailedPreprocessingRecord,
+        &tu);
+    if (error != CXError_Success ) {
+        std::cerr << "clang_parseTranslationUnit failed: "<< error << std::endl;
+        return 1;
+    }
 
 	// Print any errors or warnings
 	int n = clang_getNumDiagnostics(tu);
@@ -168,12 +144,29 @@ int main(int argc, char* argv[]) {
 	CXCursor cx_cursor = clang_getCursor(tu, cx_source_loc);
 	CXCursor t_cursor = clang_getNullCursor();
 	if (query_type == QUERY_IMPL)
+    {
 		t_cursor = clang_getCursorDefinition(cx_cursor);
+    }
 	else //query_type is QUERY_DECL
+    {
 		t_cursor = clang_getCursorReferenced(cx_cursor);
+    }
+	unsigned int cx_line, cx_col, cx_offset;
+	clang_getExpansionLocation(
+		clang_getCursorLocation(cx_cursor),
+		&cx_file, &cx_line, &cx_col, &cx_offset);
+	if (clang_getFileName(cx_file).data) {
+		printf("current file: %s, line: %d, col: %d\n",
+		       clang_getCString(clang_getFileName(cx_file)),
+		       cx_line,
+		       cx_col);
+			
+		CXString cx_usr = clang_getCursorUSR(cx_cursor);
+		printf("current display = %s\n", clang_getCString(cx_usr));
+	}
+
 	CXFile t_file;
 	unsigned int t_line, t_col, t_offset;
-
 	clang_getExpansionLocation(
 		clang_getCursorLocation(t_cursor),
 		&t_file, &t_line, &t_col, &t_offset);
@@ -185,7 +178,7 @@ int main(int argc, char* argv[]) {
 		       t_col);
 			
 		CXString t_usr = clang_getCursorUSR(t_cursor);
-		printf("display = %s\n", clang_getCString(t_usr));
+		printf("target display = %s\n", clang_getCString(t_usr));
 	}
 	else printf("no target file found.\n");
 

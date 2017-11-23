@@ -1,9 +1,6 @@
 #include "clic_parser.hpp"
 
 #include "ClicDb.hpp"
-#include <boost/foreach.hpp>
-#include <boost/iostreams/filtering_stream.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
 #include <fstream>
 #include <iostream>
 
@@ -20,12 +17,8 @@ int main(int argc, char* argv[]) {
     if (file.fail()) {
         std::cerr << argv[2] << " cannot be opened" << std::endl;
     } else {
-        boost::iostreams::filtering_stream<boost::iostreams::input> zfile;
-        zfile.push(boost::iostreams::gzip_decompressor());
-        zfile.push(file);
-
-        BOOST_FOREACH(const ClicIndex::value_type& it, parseIndex(zfile)) {
-            db.rmMultiple(it.first, it.second);
-        }
+        // for(const ClicIndex::iterator& it: parseIndex(file)) {
+        //     db.rmMultiple(it->first, it->second);
+        // }
     }
 }
