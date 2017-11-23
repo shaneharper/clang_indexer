@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CLANG_INDEXER_CLIC_PARSER_HPP__
+#define CLANG_INDEXER_CLIC_PARSER_HPP__
 
 #include "types.hpp"
 
@@ -36,3 +37,5 @@ private:
 };
 
 boost::iterator_range<IndexItemIterator> parseIndex(std::istream& in);
+
+#endif // CLANG_INDEXER_CLIC_PARSER_HPP__

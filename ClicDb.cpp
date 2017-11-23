@@ -54,7 +54,8 @@ std::set<std::string> ClicDb::get(const std::string& usr) {
 
 void ClicDb::addMultiple(const std::string& usr, const std::set<std::string>& locationsToAdd) {
     std::set<std::string> storedLocations = get(usr);
-    int originalCount = storedLocations.size();
+    const std::size_t originalCount = storedLocations.size();
+    // stuff that already exist is overwritten => ignored
     boost::copy(locationsToAdd, std::inserter(storedLocations, storedLocations.begin()));
     if (storedLocations.size() > originalCount)
         set(usr, storedLocations);

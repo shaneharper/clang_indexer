@@ -1,8 +1,9 @@
-#pragma once
+#ifndef CLANG_INDEXER_CLIC_PRINTER_HPP__
+#define CLANG_INDEXER_CLIC_PRINTER_HPP__
 
 #include "types.hpp"
 
-#include <ostream>
+#include <iosfwd>
 
 void printIndex(
     std::ostream& out,
@@ -11,3 +12,5 @@ void printIndex(
 void printLocations(
     std::ostream& out,
     const std::set<std::string>& locations);
+
+#endif // CLANG_INDEXER_CLIC_PRINTER_HPP__
