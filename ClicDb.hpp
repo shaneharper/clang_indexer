@@ -3,6 +3,9 @@
 #include <set>
 #include <string>
 
+#include "types.hpp"
+#include "sqlite3.h"
+
 
 class ClicDb {
     public:
@@ -12,14 +15,16 @@ class ClicDb {
 
         void clear();
 
-        void set(const std::string& usr, const std::set<std::string>& locations);
+        void add(const Reference& ref, const std::set<Location>& locations);
 
-        std::set<std::string> get(const std::string& usr);
+        std::set<Location> get(const Reference& ref);
 
-        void addMultiple(const std::string& usr, const std::set<std::string>& locationsToAdd);
-
-        void rmMultiple(const std::string& usr, const std::set<std::string>& locationsToRemove);
+        void addMultiple(const Reference& ref, const std::set<Location>& locationsToAdd); 
 
     private:
+
+        static int sqliteCallback(void* pClicDb, int nColumns, char** pColumns, char** columnNames);
+
+        sqlite3* m_pDb;
 };
 

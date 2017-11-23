@@ -13,65 +13,6 @@ extern "C" {
 #include <string>
 #include <sstream>
 
-// This code intentionally leaks memory like a sieve because the program is shortlived.
-
-class IVisitor {
-public:
-	virtual enum CXChildVisitResult visit(CXCursor cursor, CXCursor parent) = 0;
-};
-
-class EverythingIndexer : public IVisitor {
-public:
-	EverythingIndexer(const char* translationUnitFilename)
-		: translationUnitFilename(translationUnitFilename) {}
-
-	virtual enum CXChildVisitResult visit(CXCursor cursor, CXCursor parent) {
-		CXFile file;
-		unsigned int line, column, offset;
-		clang_getInstantiationLocation(
-			clang_getCursorLocation(cursor),
-			&file, &line, &column, &offset);
-		CXCursorKind kind = clang_getCursorKind(cursor);
-		const char* cursorFilename = clang_getCString(clang_getFileName(file));
-		printf("visit FILE: %s\n", cursorFilename);
-		if (!clang_getFileName(file).data) {
-			return CXChildVisit_Continue;
-		}
-
-		CXCursor refCursor = clang_getCursorReferenced(cursor);
-		if (!clang_equalCursors(refCursor, clang_getNullCursor())) {
-			CXFile refFile;
-			unsigned int refLine, refColumn, refOffset;
-			clang_getInstantiationLocation(
-				clang_getCursorLocation(refCursor),
-				&refFile, &refLine, &refColumn, &refOffset);
-
-			if (clang_getFileName(refFile).data) {
-				std::string referencedUsr(clang_getCString(clang_getCursorUSR(refCursor)));
-				if (!referencedUsr.empty()) {
-					std::stringstream ss;
-					ss << cursorFilename
-					   << ":" << line << ":" << column << ":" << kind;
-					std::string location(ss.str());
-					usrToReferences[referencedUsr].insert(location);
-				}
-			}
-		}
-		return CXChildVisit_Recurse;
-	}
-
-	const char* translationUnitFilename;
-	ClicIndex usrToReferences;
-};
-
-enum CXChildVisitResult visitorFunction(
-        CXCursor cursor,
-        CXCursor parent,
-        CXClientData clientData)
-{
-	IVisitor* visitor = (IVisitor*)clientData;
-	return visitor->visit(cursor, parent);
-}
 
 enum QueryType {
 	QUERY_NONE,

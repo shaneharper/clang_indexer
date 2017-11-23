@@ -4,11 +4,7 @@
 
 #include <iosfwd>
 
-void printIndex(
-    std::ostream& out,
-    const ClicIndex&);
+void printIndex( std::ostream& out, const ClicIndex&);
 
-void printLocations(
-    std::ostream& out,
-    const std::set<std::string>& locations);
+void printLocations( std::ostream& out, const std::set<Location>& locations);
 

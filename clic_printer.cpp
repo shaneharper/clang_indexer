@@ -7,18 +7,15 @@ void printIndex(
     const ClicIndex& index)
 {
     for(const ClicIndex::value_type& it: index) {
-        if (!it.first.empty()) {
-            out << it.first << '\t';
-            printLocations(out, it.second);
-            out << std::endl;
-        }
+        out << it.first << '\t';
+        printLocations(out, it.second);
+        out << std::endl;
     }
 }
 
-void printLocations(std::ostream& out, const std::set<std::string>& locations) {
+void printLocations(std::ostream& out, const std::set<Location>& locations) {
     bool first = true;
-    for(const std::string& loc: locations) {
-        if (!first) out << '\t';
+    for(const Location& loc: locations) {
         out << loc;
         first = false;
     }
