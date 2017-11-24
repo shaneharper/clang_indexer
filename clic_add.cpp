@@ -5,16 +5,17 @@ extern "C" {
 #include <fstream>
 #include <string.h>
 #include <iostream>
+#include <cassert>
 
 #include "clic_printer.hpp"
 #include "types.hpp"
 #include "Location.hpp"
 #include "Reference.hpp"
 #include "ClicDb.hpp"
+#include "CXStringWrapper.hpp"
 
-// This code leaks memory like a sieve, but it's short-lived
-
-class IVisitor {
+class IVisitor 
+{
 public:
     virtual CXChildVisitResult visit(CXCursor cursor, CXCursor parent) = 0;
 };
@@ -22,10 +23,9 @@ public:
 class EverythingIndexer : 
     public IVisitor 
 {
-    const char* nameOfFileToIndex;
 public:
     EverythingIndexer(const char* nameOfFileToIndex)
-        : nameOfFileToIndex(nameOfFileToIndex) 
+        : m_nameOfFileToIndex(nameOfFileToIndex) 
     {
     }
 
@@ -37,66 +37,59 @@ public:
             clang_getCursorLocation(cursor),
             &file, &line, &column, nullptr);
 
-        const char* cursorFilename = clang_getCString(clang_getFileName(file));
-        if (!clang_getFileName(file).data || strcmp(cursorFilename, nameOfFileToIndex) != 0) 
+        std::string cursorFilename = CXStringWrapper(clang_getFileName(file));
+        if (cursorFilename.empty() || cursorFilename != m_nameOfFileToIndex ) 
         {
             return CXChildVisit_Continue;
             // XXX Rather the ignore the file, we could index it now (if not already indexed) - perhaps the file is an include file we wish to index.
         }
 
-        CXCursor refCursor = clang_getCursorReferenced(cursor);
-        if (!clang_equalCursors(refCursor, clang_getNullCursor())) 
+
+
+        CXCursorKind kind = clang_getCursorKind(cursor);
+
+        std::string marker = CXStringWrapper(clang_getCursorUSR(cursor));
+        if ( marker.empty() && clang_isReference( kind ) )
         {
-            CXFile refFile;
-            unsigned refLine, refColumn;
+            CXCursor refCursor = clang_getCursorReferenced(cursor);
+            assert ( !clang_equalCursors(refCursor, clang_getNullCursor()));
+
+            marker = CXStringWrapper(clang_getCursorUSR(refCursor));
+        }
+        if ( marker.empty() == false )
+        {
+            CXSourceRange range = clang_Cursor_getSpellingNameRange(cursor, 0, 0);
+            CXFile startFile;
+            unsigned startLine, startColumn;
             clang_getExpansionLocation(
-                clang_getCursorLocation(refCursor),
-                &refFile, &refLine, &refColumn, nullptr);
+                clang_getRangeStart(range),
+                &startFile, &startLine, &startColumn, nullptr);
+            CXFile endFile;
+            unsigned endLine, endColumn;
+            clang_getExpansionLocation(
+                clang_getRangeEnd(range),
+                &endFile, &endLine, &endColumn, nullptr);
 
-            if (clang_getFileName(refFile).data) 
+            Reference ref(marker);
+            Location startLoc(CXStringWrapper(clang_getFileName(startFile)), startLine, startColumn, kind);
+            Location endLoc(CXStringWrapper(clang_getFileName(endFile)), endLine, endColumn, kind);
+            if ( USR_ToReferences.count( ref) == 0 )
             {
-                // const char* refFilename = clang_getCString(clang_getFileName(file));
-                const char* marker = clang_getCString(clang_getCursorUSR(refCursor));
-                const char* refSpelling = clang_getCString(clang_getCursorSpelling(refCursor));
-                const char* spelling = clang_getCString(clang_getCursorSpelling(cursor));
-                std::cout<<marker<<": "<<refSpelling<<":"<<spelling<<std::endl;
-
-                CXSourceRange range = clang_Cursor_getSpellingNameRange(cursor, 0, 0);
-
-                CXFile startFile;
-                unsigned startLine, startColumn;
-                clang_getExpansionLocation(
-                    clang_getRangeStart(range),
-                    &startFile, &startLine, &startColumn, nullptr);
-                std::cout<<"start: "<<clang_getCString(clang_getFileName(startFile))<<": "<<startLine<<":"<<startColumn<<std::endl;
-                CXFile endFile;
-                unsigned endLine, endColumn;
-                clang_getExpansionLocation(
-                    clang_getRangeEnd(range),
-                    &endFile, &endLine, &endColumn, nullptr);
-                std::cout<<"end: "<<clang_getCString(clang_getFileName(endFile))<<": "<<endLine<<":"<<endColumn<<std::endl;
-
-                if ( marker ) 
-                {
-                    unsigned kind = clang_getCursorKind(cursor);
-                    // unsigned refKind = clang_getCursorKind(refCursor);
-                    Reference ref(marker);
-                    if ( USR_ToReferences.count( ref) == 0 )
-                    {
-                        ClicIndex::value_type value( ref, {Location(cursorFilename, line, column, kind)});
-                        USR_ToReferences.insert(value);
-                    }
-                    else
-                    {
-                        USR_ToReferences[ref].insert({cursorFilename, line, column, kind});
-                    }
-                }
+                ClicIndex::value_type value( ref, {startLoc});
+                USR_ToReferences.insert(value);
+            }
+            else
+            {
+                USR_ToReferences[ref].insert({endLoc});
             }
         }
+
         return CXChildVisit_Recurse;
     }
 
     ClicIndex USR_ToReferences;
+private:
+    std::string m_nameOfFileToIndex;
 };
 
 CXChildVisitResult visitorFunction(
@@ -108,29 +101,34 @@ CXChildVisitResult visitorFunction(
     return visitor->visit(cursor, parent);
 }
 
-static void output_diagnostics(const CXTranslationUnit& tu) {
-    for (unsigned i = 0; i != clang_getNumDiagnostics(tu); ++i) {
-        std::cerr
-            << clang_getCString(
-                clang_formatDiagnostic(
-                    clang_getDiagnostic(tu, i),
-                    clang_defaultDiagnosticDisplayOptions()))
+static void output_diagnostics(const CXTranslationUnit& tu) 
+{
+    for (unsigned i = 0; i != clang_getNumDiagnostics(tu); ++i) 
+    {
+        std::cerr<< (std::string)CXStringWrapper(
+            clang_formatDiagnostic(
+                clang_getDiagnostic(tu, i),
+                clang_defaultDiagnosticDisplayOptions()
+                )
+            )
             << std::endl;
     }
 }
 
-static bool has_errors(const CXTranslationUnit& tu) {
-    for (unsigned i = 0; i != clang_getNumDiagnostics(tu); ++i) {
+static bool has_errors(const CXTranslationUnit& tu) 
+{
+    for (unsigned i = 0; i != clang_getNumDiagnostics(tu); ++i) 
+    {
         const CXDiagnosticSeverity diagnostic_severity =
             clang_getDiagnosticSeverity(clang_getDiagnostic(tu, i));
-        if (CXDiagnostic_Error == diagnostic_severity
-            || CXDiagnostic_Fatal == diagnostic_severity) {
+        if (CXDiagnostic_Error == diagnostic_severity ||
+            CXDiagnostic_Fatal == diagnostic_severity) 
+        {
             return true;
         }
     }
     return false;
 }
-
 
 
 
@@ -145,7 +143,8 @@ void addToDb(const char* dbFilename, const ClicIndex& index)
 
 
 int main(int argc, const char* argv[]) {
-    if (argc < 4) {
+    if (argc < 4) 
+    {
         std::cerr << "Usage:\n"
             << "    " << argv[0] << " <dbFilename> <sourceFilename> [<options>] \n";
         return 1;
@@ -166,12 +165,14 @@ int main(int argc, const char* argv[]) {
         0,
         CXTranslationUnit_None,
         &tu);
-    if (error != CXError_Success ) {
+    if (error != CXError_Success ) 
+    {
         std::cerr << "clang_parseTranslationUnit failed: "<< error << std::endl;
         return 1;
     }
     output_diagnostics(tu);
-    if (has_errors(tu)) {
+    if (has_errors(tu)) 
+    {
         return 1;
     }
 
@@ -182,7 +183,7 @@ int main(int argc, const char* argv[]) {
         &visitorFunction,
         &visitor);
 
-    // addToDb(dbFilename, visitor.USR_ToReferences);
+    addToDb(dbFilename, visitor.USR_ToReferences);
 
     return 0;
 }
