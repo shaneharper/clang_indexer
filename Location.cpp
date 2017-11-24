@@ -24,22 +24,22 @@ std::string Location::locationString(const char* pathname, unsigned line, unsign
     return ss.str();
 }
 
-std::string Location::locationCommaString(const Location& location)
-{
-    std::stringstream ss;
-    ss << location.m_pathname << ", " << location.m_line << ", " << location.m_column << ", " << location.m_kind;
-    return ss.str();
-}
-
 // ----- PUBLIC -----
 
-Location::Location( const char* pathname, unsigned line, unsigned column, unsigned kind)
+Location::Location(  std::string pathname, unsigned line, unsigned column, unsigned kind)
     : m_pathname(pathname)
     , m_line(line)
     , m_column(column)
     , m_kind(kind)
 {
     // Do nothing
+}
+
+std::string Location::toSafeCommaString() const
+{
+    std::stringstream ss;
+    ss << "'"<<m_pathname << "', '" << m_line << "', '" << m_column << "', '" << m_kind<<"'";
+    return ss.str();
 }
 
 bool Location::operator< ( const Location& other ) const

@@ -6,11 +6,13 @@
 class Location
 {
 public:
-    Location(const char* pathname, unsigned line, unsigned column, unsigned kind);
+    Location(std::string pathname, unsigned line, unsigned column, unsigned kind);
 
     static std::string locationString(const Location& location);
     static std::string locationString(const char* pathname, unsigned line, unsigned column, unsigned kind);
     static std::string locationCommaString(const Location& location);
+
+    std::string toSafeCommaString() const;
 
     bool operator< (const Location& other) const;
 

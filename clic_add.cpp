@@ -55,14 +55,41 @@ public:
 
             if (clang_getFileName(refFile).data) 
             {
-                const char* refFilename = clang_getCString(clang_getFileName(file));
+                // const char* refFilename = clang_getCString(clang_getFileName(file));
                 const char* marker = clang_getCString(clang_getCursorUSR(refCursor));
+                const char* refSpelling = clang_getCString(clang_getCursorSpelling(refCursor));
+                const char* spelling = clang_getCString(clang_getCursorSpelling(cursor));
+                std::cout<<marker<<": "<<refSpelling<<":"<<spelling<<std::endl;
+
+                CXSourceRange range = clang_Cursor_getSpellingNameRange(cursor, 0, 0);
+
+                CXFile startFile;
+                unsigned startLine, startColumn;
+                clang_getExpansionLocation(
+                    clang_getRangeStart(range),
+                    &startFile, &startLine, &startColumn, nullptr);
+                std::cout<<"start: "<<clang_getCString(clang_getFileName(startFile))<<": "<<startLine<<":"<<startColumn<<std::endl;
+                CXFile endFile;
+                unsigned endLine, endColumn;
+                clang_getExpansionLocation(
+                    clang_getRangeEnd(range),
+                    &endFile, &endLine, &endColumn, nullptr);
+                std::cout<<"end: "<<clang_getCString(clang_getFileName(endFile))<<": "<<endLine<<":"<<endColumn<<std::endl;
+
                 if ( marker ) 
                 {
                     unsigned kind = clang_getCursorKind(cursor);
-                    unsigned refKind = clang_getCursorKind(refCursor);
-                    Reference ref(marker, {refFilename, refLine, refColumn, refKind});
-                    USR_ToReferences[ref].insert({cursorFilename, line, column, kind});
+                    // unsigned refKind = clang_getCursorKind(refCursor);
+                    Reference ref(marker);
+                    if ( USR_ToReferences.count( ref) == 0 )
+                    {
+                        ClicIndex::value_type value( ref, {Location(cursorFilename, line, column, kind)});
+                        USR_ToReferences.insert(value);
+                    }
+                    else
+                    {
+                        USR_ToReferences[ref].insert({cursorFilename, line, column, kind});
+                    }
                 }
             }
         }
@@ -124,6 +151,7 @@ int main(int argc, const char* argv[]) {
         return 1;
     }
     const char* const dbFilename = argv[1];
+    std::cout<<"Database file name: "<<dbFilename<<std::endl;
     const char* const sourceFilename = argv[2];
     std::cout<<"Source file name: "<<sourceFilename<<std::endl;
 
@@ -154,7 +182,7 @@ int main(int argc, const char* argv[]) {
         &visitorFunction,
         &visitor);
 
-    addToDb(dbFilename, visitor.USR_ToReferences);
+    // addToDb(dbFilename, visitor.USR_ToReferences);
 
     return 0;
 }

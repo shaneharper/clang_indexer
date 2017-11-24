@@ -2,35 +2,33 @@
 
 #include <string.h>
 
+#include <iostream>
+
 // ----- STATICS -----
 
 std::ostream& operator<<( std::ostream& os, const Reference& ref)
 {
-    os << ref.m_marker<<":"<< ref.m_location;
+    os << ref.m_marker;
     return os;
 }
 
 // ----- PUBLIC -----
 
-Reference::Reference( const char* marker, Location location)
+Reference::Reference( std::string marker)
     : m_marker(marker)
-    , m_location(location)
 {
     // Do nothing
 }
 
-
-const Location& Reference::getLocation() const
+std::string Reference::toSafeCommaString() const
 {
-    return m_location;
+    std::stringstream ss;
+    ss << "'"<<m_marker<<"'";
+    return ss.str();
 }
 
 bool Reference::operator< ( const Reference& other ) const
 {
-    if ( m_marker < other.m_marker )
-    {
-        return true;
-    }
-    return m_location < other.m_location;
-
+    return m_marker < other.m_marker;
 }
+

@@ -15,13 +15,14 @@ class ClicDb {
 
         void clear();
 
-        void add(const Reference& ref, const std::set<Location>& locations);
-
         std::set<Location> get(const Reference& ref);
 
         void addMultiple(const Reference& ref, const std::set<Location>& locationsToAdd); 
 
     private:
+
+        int findIdForReference( const Reference& ref);
+        std::set<Location> findLocationsWhere( std::string where);
 
         static int sqliteCallback(void* pClicDb, int nColumns, char** pColumns, char** columnNames);
 

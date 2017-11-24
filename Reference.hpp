@@ -5,9 +5,9 @@
 class Reference
 {
 public:
-    Reference( const char* marker, Location location);
+    Reference( std::string marker);
 
-    const Location& getLocation() const;
+    std::string toSafeCommaString() const;
 
     bool operator< (const Reference& other) const;
 
@@ -15,5 +15,4 @@ public:
 
 private:
     std::string m_marker;
-    Location m_location;
 };

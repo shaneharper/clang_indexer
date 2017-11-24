@@ -1,5 +1,6 @@
 #include "clic_printer.hpp"
 #include "types.hpp"
+#include "ClicDb.hpp"
 
 extern "C" {
 #include <clang-c/Index.h>
@@ -119,7 +120,16 @@ int main(int argc, char* argv[]) {
 		       t_col);
 			
 		CXString t_usr = clang_getCursorUSR(t_cursor);
-		printf("target display = %s\n", clang_getCString(t_usr));
+        std::string tString(clang_getCString(t_usr));
+		printf("target display = %s\n", tString.c_str());
+		printf(" ================ ");
+
+        ClicDb db("./tmp");
+        Reference ref( tString );
+        std::set<Location> usages = db.get( ref);
+
+        printLocations( std::cout, usages);
+
 	}
 	else printf("no target file found.\n");
 
