@@ -1,89 +1,129 @@
-#include "clic_printer.hpp"
-#include "types.hpp"
 
 extern "C" {
 #include <clang-c/Index.h>
 }
-#include "ClicDb.hpp"
-#include <boost/foreach.hpp>
-#include <boost/iostreams/filtering_stream.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
 #include <fstream>
-#include <string>
+#include <string.h>
 #include <iostream>
+#include <cassert>
 
-// This code leaks memory like a sieve, but it's short-lived
+#include "clic_printer.hpp"
+#include "types.hpp"
+#include "Location.hpp"
+#include "Reference.hpp"
+#include "ClicDb.hpp"
+#include "CXStringWrapper.hpp"
 
-class IVisitor {
+class IVisitor 
+{
 public:
     virtual CXChildVisitResult visit(CXCursor cursor, CXCursor parent) = 0;
 };
 
-class EverythingIndexer : public IVisitor {
-    const char* nameOfFileToIndex;
+class EverythingIndexer : 
+    public IVisitor 
+{
 public:
     EverythingIndexer(const char* nameOfFileToIndex)
-        : nameOfFileToIndex(nameOfFileToIndex) {}
+        : m_nameOfFileToIndex(nameOfFileToIndex) 
+    {
+    }
 
-    virtual CXChildVisitResult visit(CXCursor cursor, CXCursor /*parent*/) {
+    virtual CXChildVisitResult visit(CXCursor cursor, CXCursor /*parent*/) 
+    {
         CXFile file;
         unsigned line, column;
-        clang_getInstantiationLocation(
-                clang_getCursorLocation(cursor),
-                &file, &line, &column, /*offset*/ NULL);
-        const char* cursorFilename = clang_getCString(clang_getFileName(file));
+        clang_getExpansionLocation(
+            clang_getCursorLocation(cursor),
+            &file, &line, &column, nullptr);
 
-        if (!clang_getFileName(file).data || strcmp(cursorFilename, nameOfFileToIndex) != 0) {
+        std::string cursorFilename = CXStringWrapper(clang_getFileName(file));
+        if (cursorFilename.empty() || cursorFilename != m_nameOfFileToIndex ) 
+        {
             return CXChildVisit_Continue;
             // XXX Rather the ignore the file, we could index it now (if not already indexed) - perhaps the file is an include file we wish to index.
         }
 
-        CXCursor refCursor = clang_getCursorReferenced(cursor);
-        if (!clang_equalCursors(refCursor, clang_getNullCursor())) {
-            CXFile refFile;
-            clang_getInstantiationLocation(
-                    clang_getCursorLocation(refCursor),
-                    &refFile, /*line*/ NULL, /*column*/ NULL, /*offset*/ NULL);
 
-            if (clang_getFileName(refFile).data) /*XXX why is this here? Note referencedUSR.empty() check below. */ {
-                const std::string referencedUSR(clang_getCString(clang_getCursorUSR(refCursor)));
-                if (!referencedUSR.empty()) {
-                    USR_ToReferences[referencedUSR].insert(Location::locationString(cursorFilename, line, column, clang_getCursorKind(cursor)));
-                }
+
+        CXCursorKind kind = clang_getCursorKind(cursor);
+
+        std::string marker = CXStringWrapper(clang_getCursorUSR(cursor));
+        if ( marker.empty() && clang_isReference( kind ) )
+        {
+            CXCursor refCursor = clang_getCursorReferenced(cursor);
+            assert ( !clang_equalCursors(refCursor, clang_getNullCursor()));
+
+            marker = CXStringWrapper(clang_getCursorUSR(refCursor));
+        }
+        if ( marker.empty() == false )
+        {
+            CXSourceRange range = clang_Cursor_getSpellingNameRange(cursor, 0, 0);
+            CXFile startFile;
+            unsigned startLine, startColumn;
+            clang_getExpansionLocation(
+                clang_getRangeStart(range),
+                &startFile, &startLine, &startColumn, nullptr);
+            CXFile endFile;
+            unsigned endLine, endColumn;
+            clang_getExpansionLocation(
+                clang_getRangeEnd(range),
+                &endFile, &endLine, &endColumn, nullptr);
+
+            Reference ref(marker);
+            Location startLoc(CXStringWrapper(clang_getFileName(startFile)), startLine, startColumn, kind);
+            Location endLoc(CXStringWrapper(clang_getFileName(endFile)), endLine, endColumn, kind);
+            if ( USR_ToReferences.count( ref) == 0 )
+            {
+                ClicIndex::value_type value( ref, {startLoc});
+                USR_ToReferences.insert(value);
+            }
+            else
+            {
+                USR_ToReferences[ref].insert({endLoc});
             }
         }
+
         return CXChildVisit_Recurse;
     }
 
     ClicIndex USR_ToReferences;
+private:
+    std::string m_nameOfFileToIndex;
 };
 
 CXChildVisitResult visitorFunction(
-        CXCursor cursor,
-        CXCursor parent,
-        CXClientData clientData)
+    CXCursor cursor,
+    CXCursor parent,
+    CXClientData clientData)
 {
     IVisitor* visitor = (IVisitor*)clientData;
     return visitor->visit(cursor, parent);
 }
 
-static void output_diagnostics(const CXTranslationUnit& tu) {
-    for (unsigned i = 0; i != clang_getNumDiagnostics(tu); ++i) {
-        std::cerr
-            << clang_getCString(
-                    clang_formatDiagnostic(
-                        clang_getDiagnostic(tu, i),
-                        clang_defaultDiagnosticDisplayOptions()))
+static void output_diagnostics(const CXTranslationUnit& tu) 
+{
+    for (unsigned i = 0; i != clang_getNumDiagnostics(tu); ++i) 
+    {
+        std::cerr<< (std::string)CXStringWrapper(
+            clang_formatDiagnostic(
+                clang_getDiagnostic(tu, i),
+                clang_defaultDiagnosticDisplayOptions()
+                )
+            )
             << std::endl;
     }
 }
 
-static bool has_errors(const CXTranslationUnit& tu) {
-    for (unsigned i = 0; i != clang_getNumDiagnostics(tu); ++i) {
+static bool has_errors(const CXTranslationUnit& tu) 
+{
+    for (unsigned i = 0; i != clang_getNumDiagnostics(tu); ++i) 
+    {
         const CXDiagnosticSeverity diagnostic_severity =
             clang_getDiagnosticSeverity(clang_getDiagnostic(tu, i));
-        if (CXDiagnostic_Error == diagnostic_severity
-            || CXDiagnostic_Fatal == diagnostic_severity) {
+        if (CXDiagnostic_Error == diagnostic_severity ||
+            CXDiagnostic_Fatal == diagnostic_severity) 
+        {
             return true;
         }
     }
@@ -91,59 +131,58 @@ static bool has_errors(const CXTranslationUnit& tu) {
 }
 
 
-void write(const char* indexFilename, const ClicIndex& index)
-{
-    std::ofstream fout(indexFilename);
-    boost::iostreams::filtering_stream<boost::iostreams::output> zout;
-    zout.push(boost::iostreams::gzip_compressor());
-    zout.push(fout);
-    printIndex(zout, index);
-}
-
 
 void addToDb(const char* dbFilename, const ClicIndex& index)
 {
     ClicDb db(dbFilename);
 
-    BOOST_FOREACH(const ClicIndex::value_type& it, index) {
+    for(const ClicIndex::value_type& it: index) {
         db.addMultiple(/*USR*/ it.first, it.second);
     }
 }
 
 
 int main(int argc, const char* argv[]) {
-    if (argc < 4) {
+    if (argc < 4) 
+    {
         std::cerr << "Usage:\n"
-            << "    " << argv[0] << " <dbFilename> <indexFilename> [<options>] <sourceFilename>\n";
+            << "    " << argv[0] << " <dbFilename> <sourceFilename> [<options>] \n";
         return 1;
     }
     const char* const dbFilename = argv[1];
-    const char* const indexFilename = argv[2];
-    const char* const sourceFilename = argv[argc-1];
+    std::cout<<"Database file name: "<<dbFilename<<std::endl;
+    const char* const sourceFilename = argv[2];
+    std::cout<<"Source file name: "<<sourceFilename<<std::endl;
 
-    CXIndex cxindex = clang_createIndex(0, /*displayDiagnostics*/ 0);
-    CXTranslationUnit tu = clang_parseTranslationUnit(
-        cxindex, NULL,
-        argv + 3, argc - 3, // Skip over program name (argv[0]), dbFilename and indexFilename
-        0, 0,
-        CXTranslationUnit_None);
-    if (tu == NULL) {
-        std::cerr << "clang_parseTranslationUnit failed." << std::endl;
+    CXIndex cxindex = clang_createIndex(0, /*displayDiagnostics*/ 1);
+    CXTranslationUnit tu;
+    CXErrorCode error = clang_parseTranslationUnit2(
+        cxindex, 
+        sourceFilename,
+        argv + 3, 
+        argc - 3, // Skip over program name (argv[0]), dbFilename and indexFilename
+        nullptr, 
+        0,
+        CXTranslationUnit_None,
+        &tu);
+    if (error != CXError_Success ) 
+    {
+        std::cerr << "clang_parseTranslationUnit failed: "<< error << std::endl;
         return 1;
     }
     output_diagnostics(tu);
-    if (has_errors(tu)) {
+    if (has_errors(tu)) 
+    {
         return 1;
     }
 
     // Create the index
     EverythingIndexer visitor(sourceFilename);
     clang_visitChildren(
-            clang_getTranslationUnitCursor(tu),
-            &visitorFunction,
-            &visitor);
+        clang_getTranslationUnitCursor(tu),
+        &visitorFunction,
+        &visitor);
 
-    write(indexFilename, visitor.USR_ToReferences); // Note: the index files and the database contain the same information. Note that the db isn't keyed on source filename (the index files are though)- finding all references from a particular source file (only) occurs when updating the db after deleting a source file.
     addToDb(dbFilename, visitor.USR_ToReferences);
 
     return 0;

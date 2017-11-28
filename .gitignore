@@ -1,2 +1,5 @@
+.*.swp
+.*.swo
+code-symbols*
+.clic
 build/
-*.swp

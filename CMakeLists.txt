@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 2.6)
 
 project (clic_project)
-
+option(USE_CLANG "build application with clang" ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
-find_package(Boost COMPONENTS iostreams REQUIRED)
+find_package(Boost 1.42 COMPONENTS iostreams REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(LibClang REQUIRED)
 find_package(BerkeleyDB REQUIRED)
@@ -40,4 +40,16 @@ target_link_libraries(clic_rm
     ${Boost_LIBRARIES}
     ${ZLIB_LIBRARIES}
     ${DB_LIBRARIES}
+)
+
+add_executable(clic_query clic_query.cpp)
+target_link_libraries(clic_query
+    ${LibClang_LIBRARIES}
+)
+
+install(PROGRAMS clic_update.sh clic_update.py
+    DESTINATION bin
+)
+install(TARGETS clic_rm clic_add clic_clear
+    RUNTIME DESTINATION bin
 )

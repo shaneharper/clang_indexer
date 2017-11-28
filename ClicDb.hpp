@@ -1,7 +1,10 @@
 #pragma once
 
-#include <db_cxx.h>
 #include <set>
+#include <string>
+
+#include "types.hpp"
+#include "sqlite3.h"
 
 
 class ClicDb {
@@ -12,30 +15,17 @@ class ClicDb {
 
         void clear();
 
-        void set(const std::string& usr, const std::set<std::string>& locations);
+        std::set<Location> get(const Reference& ref);
 
-        std::set<std::string> get(const std::string& usr);
-
-        void addMultiple(const std::string& usr, const std::set<std::string>& locationsToAdd);
-
-        void rmMultiple(const std::string& usr, const std::set<std::string>& locationsToRemove);
+        void addMultiple(const Reference& ref, const std::set<Location>& locationsToAdd); 
 
     private:
-        class ClicCursor {
-            public:
-                ClicCursor(Db& db) {
-                    db.cursor(0, &cursor, 0);
-                }
-                void rm(Dbt* key, Dbt* value) {
-                    if (cursor->get(key, value, DB_GET_BOTH) != DB_NOTFOUND)
-                        cursor->del(0);
-                }
-                ~ClicCursor() {
-                    cursor->close();
-                }
-            private:
-                Dbc* cursor;
-        };
 
-        Db db;
+        int findIdForReference( const Reference& ref);
+        std::set<Location> findLocationsWhere( std::string where);
+
+        static int sqliteCallback(void* pClicDb, int nColumns, char** pColumns, char** columnNames);
+
+        sqlite3* m_pDb;
 };
+
